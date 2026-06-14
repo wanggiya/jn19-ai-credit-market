@@ -134,6 +134,7 @@
     <button onclick="showPage('buy')" id="nav-buy">Buy Credits</button>
     <button onclick="showPage('ai')" id="nav-ai">AI Usage</button>
     <button onclick="showPage('marketplace')" id="nav-marketplace">Marketplace</button>
+    <button onclick="showPage('escrow')" id="nav-escrow">Escrow</button>
     <button onclick="showPage('admin')" id="nav-admin">Admin / Groups</button>
     <button onclick="showPage('audit')" id="nav-audit">Audit</button>
   </nav>
@@ -146,6 +147,7 @@
           Hackathon prototype only. JN19 credits are simulated platform credits.
           They are not tradable, not redeemable for cash, and not official OpenAI credits.
         </p>
+        <button class="secondary" onclick="resetDemo()">Reset Demo Data</button>
       </div>
 
       <div class="grid">
@@ -245,15 +247,60 @@
       </div>
     </section>
 
+    <section id="escrow" class="page">
+      <div class="card">
+        <h1>Escrow</h1>
+        <p class="muted">
+          Lock JN19 credits for a task. The seller gets paid only after the buyer approves completion.
+        </p>
+      </div>
+
+      <div class="grid">
+        <div class="card">
+          <h3>Create Escrow Task</h3>
+
+          <label>Task title</label>
+          <input id="escrowTitle" value="Clean a 500-row AI training dataset" />
+
+          <label>Seller</label>
+          <select id="escrowSeller">
+            <option value="merchant">AI Compute Merchant</option>
+            <option value="group">Robotics Research Group</option>
+            <option value="individual">Alex Individual</option>
+          </select>
+
+          <label>Amount to lock</label>
+          <input id="escrowAmount" type="number" value="50" />
+
+          <br><br>
+          <button class="primary" onclick="createEscrow()">Lock Credits in Escrow</button>
+        </div>
+
+        <div class="card">
+          <h3>Active Escrow</h3>
+          <div id="escrowStatus" class="muted">No escrow task yet.</div>
+
+          <br>
+          <button class="secondary" onclick="sellerCompleteEscrow()">Seller Marks Complete</button>
+          <button class="primary" onclick="buyerReleaseEscrow()">Buyer Approves Release</button>
+          <button class="secondary" onclick="cancelEscrow()">Cancel Escrow</button>
+        </div>
+      </div>
+    </section>
+
+
     <section id="admin" class="page">
       <div class="card">
         <h1>Admin / Groups</h1>
-        <p class="muted">School admins and group managers can allocate credits to students or teams.</p>
+        <p class="muted">
+          School admins and group managers can allocate credits to students or teams. Merchants can also view receivables and simulate USD/USDC settlement.
+        </p>
       </div>
 
       <div class="grid">
         <div class="card">
           <h3>Allocate Credits</h3>
+          <p class="muted">Use the School Admin or Group Manager role for this part of the demo.</p>
 
           <label>Recipient</label>
           <select id="recipient">
@@ -266,13 +313,14 @@
           <input id="allocateAmount" type="number" value="50" />
 
           <br><br>
-          <button class="primary" onclick="allocateCredits()">Allocate</button>
+          <button class="primary" onclick="allocateCredits()">Allocate Credits</button>
         </div>
 
         <div class="card">
           <h3>Merchant Settlement</h3>
+          <p class="muted">Marketplace and escrow payments create merchant receivables. Settlement is simulated only.</p>
           <p>Merchant receivable:</p>
-          <div id="merchantReceivable" class="big"></div>
+          <div id="merchantReceivable" class="big">0 JN19</div>
 
           <label>Settlement method</label>
           <select id="settlementMethod">
@@ -327,6 +375,7 @@
     const defaultState = {
       activeRole: "individual",
       merchantReceivable: 0,
+      escrow: null,
       accounts: {
         individual: { name: "Alex Individual", type: "Individual User", balance: 120 },
         student: { name: "Maya Student", type: "Student Account", balance: 80 },
@@ -343,10 +392,39 @@
       ledger: []
     };
 
-    let state = JSON.parse(localStorage.getItem("jn19State")) || defaultState;
+    function loadState() {
+      const saved = JSON.parse(localStorage.getItem("jn19State") || "null");
+      if (!saved) return structuredClone(defaultState);
+
+      return {
+        ...defaultState,
+        ...saved,
+        accounts: {
+          ...defaultState.accounts,
+          ...(saved.accounts || {})
+        },
+        usage: {
+          ...defaultState.usage,
+          ...(saved.usage || {})
+        },
+        ledger: saved.ledger || [],
+        merchantReceivable: saved.merchantReceivable || 0,
+        escrow: saved.escrow || null
+      };
+    }
+
+    let state = loadState();
 
     function save() {
       localStorage.setItem("jn19State", JSON.stringify(state));
+    }
+
+    function resetDemo() {
+      localStorage.removeItem("jn19State");
+      state = structuredClone(defaultState);
+      save();
+      render();
+      showPage("dashboard");
     }
 
     function current() {
@@ -398,7 +476,9 @@
       document.getElementById("accountType").textContent = account.type;
       document.getElementById("balance").textContent = `${account.balance} JN19`;
       document.getElementById("capacity").textContent = `${Math.floor(account.balance / 8)} requests`;
-      document.getElementById("merchantReceivable").textContent = `${state.merchantReceivable} JN19`;
+      const merchantBox = document.getElementById("merchantReceivable");
+      if (merchantBox) merchantBox.textContent = `${state.merchantReceivable} JN19`;
+      renderEscrow();
       renderLedger();
     }
 
@@ -483,6 +563,130 @@
       render();
       alert(`Merchant settled through ${method}.`);
     }
+
+    function createEscrow() {
+  const title = document.getElementById("escrowTitle").value;
+  const sellerKey = document.getElementById("escrowSeller").value;
+  const amount = Number(document.getElementById("escrowAmount").value);
+
+  if (!title) return alert("Enter a task title.");
+  if (amount <= 0) return alert("Enter a valid escrow amount.");
+  if (current().balance < amount) return alert("Not enough JN19 credits.");
+
+  current().balance -= amount;
+
+  state.escrow = {
+    title,
+    buyerKey: state.activeRole,
+    buyerName: current().name,
+    sellerKey,
+    sellerName: state.accounts[sellerKey].name,
+    amount,
+    status: "Locked"
+  };
+
+  addLedger(current().name, "Escrow locked", `-${amount}`, title);
+
+  save();
+  render();
+  alert("Escrow created and credits locked.");
+}
+
+function sellerCompleteEscrow() {
+  if (!state.escrow) return alert("No active escrow.");
+  if (state.escrow.status !== "Locked") return alert("Escrow is not in locked status.");
+
+  state.escrow.status = "Completed by seller";
+
+  addLedger(
+    state.escrow.sellerName,
+    "Escrow marked complete",
+    `${state.escrow.amount}`,
+    state.escrow.title
+  );
+
+  save();
+  render();
+  alert("Seller marked the task complete.");
+}
+
+function buyerReleaseEscrow() {
+  if (!state.escrow) return alert("No active escrow.");
+  if (state.escrow.status !== "Completed by seller") {
+    return alert("Seller must mark the task complete first.");
+  }
+
+  const amount = state.escrow.amount;
+  const title = state.escrow.title;
+  const sellerName = state.escrow.sellerName;
+
+  state.merchantReceivable += amount;
+
+  addLedger(
+    state.escrow.buyerName,
+    "Escrow released",
+    `${amount}`,
+    `Released to ${sellerName} for ${title}`
+  );
+
+  addLedger(
+    sellerName,
+    "Escrow receivable created",
+    `+${amount}`,
+    title
+  );
+
+  state.escrow = null;
+
+  save();
+  render();
+  alert("Escrow released to seller receivable.");
+}
+
+function cancelEscrow() {
+  if (!state.escrow) return alert("No active escrow.");
+
+  if (state.escrow.status !== "Locked") {
+    return alert("Cannot cancel after seller marks complete.");
+  }
+
+  const buyerKey = state.escrow.buyerKey;
+  const amount = state.escrow.amount;
+  const title = state.escrow.title;
+
+  state.accounts[buyerKey].balance += amount;
+
+  addLedger(
+    state.accounts[buyerKey].name,
+    "Escrow canceled",
+    `+${amount}`,
+    title
+  );
+
+  state.escrow = null;
+
+  save();
+  render();
+  alert("Escrow canceled and credits returned.");
+}
+
+function renderEscrow() {
+  const box = document.getElementById("escrowStatus");
+  if (!box) return;
+
+  if (!state.escrow) {
+    box.innerHTML = "No escrow task yet.";
+    return;
+  }
+
+  box.innerHTML = `
+    <b>Task:</b> ${state.escrow.title}<br>
+    <b>Buyer:</b> ${state.escrow.buyerName}<br>
+    <b>Seller:</b> ${state.escrow.sellerName}<br>
+    <b>Amount:</b> ${state.escrow.amount} JN19<br>
+    <b>Status:</b> ${state.escrow.status}
+  `;
+}
 
     function renderLedger() {
       const body = document.getElementById("ledgerBody");
