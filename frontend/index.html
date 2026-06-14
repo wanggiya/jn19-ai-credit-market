@@ -1,0 +1,221 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JN-19 AI Credit Market</title>
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 980px; margin: 36px auto; padding: 0 18px; background: #f6f7f9; color: #111827; }
+    h1 { margin-bottom: 4px; }
+    h2 { margin-top: 0; }
+    .card { background: white; border: 1px solid #ddd; border-radius: 14px; padding: 18px; margin: 14px 0; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
+    input, button { padding: 10px; margin: 6px 4px; border-radius: 8px; border: 1px solid #ccc; }
+    button { cursor: pointer; border: 0; background: #111827; color: white; }
+    button.secondary { background: #4b5563; }
+    button.danger { background: #b91c1c; }
+    button.good { background: #166534; }
+    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+    .muted { color: #667085; }
+    .warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 10px; border-radius: 10px; }
+    .listing { border-top: 1px solid #eee; padding: 12px 0; }
+    code { background: #eee; padding: 2px 5px; border-radius: 4px; }
+  </style>
+</head>
+<body>
+  <h1>JN-19 AI Credit Market</h1>
+  <p class="muted">Hackathon demo: buy fake <b>JN19 AI credits</b> using fake <b>mUSDC</b>. JN19 is the token name; ERC-20 is the token standard underneath.</p>
+
+  <div class="warning">
+    Demo wording: this is <b>not</b> resale of real ChatGPT/OpenAI credits, and mUSDC is not real USDC. It simulates how a platform credit marketplace could work on a test network.
+  </div>
+
+  <div class="card">
+    <button onclick="connect()">Connect Wallet</button>
+    <button class="secondary" onclick="refresh()">Refresh</button>
+    <p><b>Wallet:</b> <span id="wallet">Not connected</span></p>
+    <p><b>JN19:</b> <span id="jn19Bal">-</span> | <b>mUSDC:</b> <span id="usdcBal">-</span></p>
+    <button onclick="claim('JN19')">Claim 1,000 JN19</button>
+    <button onclick="claim('mUSDC')">Claim 1,000 mUSDC</button>
+  </div>
+
+  <div class="card">
+    <h2>Create Listing</h2>
+    <p class="muted">Seller escrows JN19 credits. Buyer pays mUSDC and receives the JN19 credits.</p>
+    <div class="row">
+      <span>Sell</span>
+      <input id="creditAmount" placeholder="100" value="100" />
+      <span>JN19 credits for</span>
+      <input id="paymentAmount" placeholder="20" value="20" />
+      <span>mUSDC</span>
+      <button onclick="createListing()">Create Listing</button>
+    </div>
+    <p class="muted">This sends two wallet transactions: approve JN19, then create listing.</p>
+  </div>
+
+  <div class="card">
+    <h2>Use Credits Demo</h2>
+    <p class="muted">After buying JN19, burn/spend some credits to simulate running an AI request.</p>
+    <div class="row">
+      <span>Spend</span>
+      <input id="burnAmount" placeholder="5" value="5" />
+      <span>JN19</span>
+      <button class="good" onclick="useCredits()">Run Fake AI Request</button>
+    </div>
+    <p id="fakeAiResult" class="muted"></p>
+  </div>
+
+  <div class="card">
+    <h2>Listings</h2>
+    <div id="listings">Connect wallet and refresh.</div>
+  </div>
+
+  <script>
+    let provider, signer, account, addresses;
+
+    const erc20Abi = [
+      "function balanceOf(address account) view returns (uint256)",
+      "function approve(address spender, uint256 value) returns (bool)",
+      "function claim()",
+      "function burnForAiUsage(uint256 amount)"
+    ];
+
+    const marketAbi = [
+      "function createListing(uint256 creditAmount, uint256 paymentAmount) returns (uint256)",
+      "function buyListing(uint256 listingId)",
+      "function cancelListing(uint256 listingId)",
+      "function getListings() view returns (tuple(address seller,uint256 creditAmount,uint256 paymentAmount,uint8 status)[])"
+    ];
+
+    const statusNames = ["None", "Active", "Sold", "Cancelled"];
+
+    async function loadAddresses() {
+      if (addresses) return addresses;
+      try {
+        const res = await fetch("./addresses.json");
+        addresses = await res.json();
+      } catch (e) {
+        addresses = {
+          JN19: "PASTE_JN19_ADDRESS_HERE",
+          mUSDC: "PASTE_MUSDC_ADDRESS_HERE",
+          JN19Market: "PASTE_MARKET_ADDRESS_HERE"
+        };
+      }
+      return addresses;
+    }
+
+    async function connect() {
+      if (!window.ethereum) {
+        alert("Please install MetaMask.");
+        return;
+      }
+      await loadAddresses();
+      provider = new ethers.BrowserProvider(window.ethereum);
+      await provider.send("eth_requestAccounts", []);
+      signer = await provider.getSigner();
+      account = await signer.getAddress();
+      document.getElementById("wallet").innerText = account;
+      await refresh();
+    }
+
+    async function requireWallet() {
+      if (!signer) await connect();
+      await loadAddresses();
+    }
+
+    function contracts() {
+      return {
+        jn19: new ethers.Contract(addresses.JN19, erc20Abi, signer),
+        usdc: new ethers.Contract(addresses.mUSDC, erc20Abi, signer),
+        market: new ethers.Contract(addresses.JN19Market, marketAbi, signer)
+      };
+    }
+
+    function parse(amount) {
+      return ethers.parseUnits(String(amount), 18);
+    }
+
+    function fmt(amount) {
+      return Number(ethers.formatUnits(amount, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 });
+    }
+
+    async function claim(token) {
+      await requireWallet();
+      const c = contracts();
+      const tx = token === "JN19" ? await c.jn19.claim() : await c.usdc.claim();
+      await tx.wait();
+      await refresh();
+    }
+
+    async function createListing() {
+      await requireWallet();
+      const c = contracts();
+      const creditAmount = parse(document.getElementById("creditAmount").value || "0");
+      const paymentAmount = parse(document.getElementById("paymentAmount").value || "0");
+
+      let tx = await c.jn19.approve(addresses.JN19Market, creditAmount);
+      await tx.wait();
+      tx = await c.market.createListing(creditAmount, paymentAmount);
+      await tx.wait();
+      await refresh();
+    }
+
+    async function buyListing(id, paymentAmount) {
+      await requireWallet();
+      const c = contracts();
+      let tx = await c.usdc.approve(addresses.JN19Market, paymentAmount);
+      await tx.wait();
+      tx = await c.market.buyListing(id);
+      await tx.wait();
+      await refresh();
+    }
+
+    async function cancelListing(id) {
+      await requireWallet();
+      const c = contracts();
+      const tx = await c.market.cancelListing(id);
+      await tx.wait();
+      await refresh();
+    }
+
+    async function useCredits() {
+      await requireWallet();
+      const c = contracts();
+      const burnAmount = parse(document.getElementById("burnAmount").value || "0");
+      const tx = await c.jn19.burnForAiUsage(burnAmount);
+      await tx.wait();
+      document.getElementById("fakeAiResult").innerText = "Fake AI request completed. JN19 credits were burned/spent.";
+      await refresh();
+    }
+
+    async function refresh() {
+      if (!signer || !addresses) return;
+      const c = contracts();
+      document.getElementById("jn19Bal").innerText = fmt(await c.jn19.balanceOf(account));
+      document.getElementById("usdcBal").innerText = fmt(await c.usdc.balanceOf(account));
+
+      const listings = await c.market.getListings();
+      const container = document.getElementById("listings");
+      if (listings.length === 0) {
+        container.innerHTML = "No listings yet.";
+        return;
+      }
+
+      container.innerHTML = listings.map((l, i) => {
+        const isSeller = l.seller.toLowerCase() === account.toLowerCase();
+        const active = Number(l.status) === 1;
+        const rate = Number(ethers.formatUnits(l.paymentAmount, 18)) / Number(ethers.formatUnits(l.creditAmount, 18));
+        return `
+          <div class="listing">
+            <b>Listing #${i}</b> — ${fmt(l.creditAmount)} JN19 for ${fmt(l.paymentAmount)} mUSDC
+            <br><span class="muted">Seller: <code>${l.seller.slice(0, 6)}...${l.seller.slice(-4)}</code> | Status: ${statusNames[Number(l.status)]} | Rate: ${rate.toFixed(4)} mUSDC/JN19</span>
+            <br>
+            ${active && !isSeller ? `<button onclick="buyListing(${i}, '${l.paymentAmount.toString()}')">Buy</button>` : ""}
+            ${active && isSeller ? `<button class="danger" onclick="cancelListing(${i})">Cancel</button>` : ""}
+          </div>
+        `;
+      }).join("");
+    }
+  </script>
+</body>
+</html>
