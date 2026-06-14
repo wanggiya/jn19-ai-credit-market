@@ -1,221 +1,640 @@
 <!doctype html>
-<html>
+<html lang="en">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>JN-19 AI Credit Market</title>
-  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.2/dist/ethers.umd.min.js"></script>
+  <title>JN-19 Work Credit Network</title>
   <style>
-    body { font-family: Arial, sans-serif; max-width: 980px; margin: 36px auto; padding: 0 18px; background: #f6f7f9; color: #111827; }
-    h1 { margin-bottom: 4px; }
-    h2 { margin-top: 0; }
-    .card { background: white; border: 1px solid #ddd; border-radius: 14px; padding: 18px; margin: 14px 0; box-shadow: 0 1px 4px rgba(0,0,0,0.05); }
-    input, button { padding: 10px; margin: 6px 4px; border-radius: 8px; border: 1px solid #ccc; }
-    button { cursor: pointer; border: 0; background: #111827; color: white; }
+    :root {
+      --bg: #f6f7fb;
+      --card: #ffffff;
+      --ink: #111827;
+      --muted: #667085;
+      --line: #e5e7eb;
+      --dark: #111827;
+      --green: #166534;
+      --red: #b91c1c;
+      --blue: #1d4ed8;
+      --amber: #92400e;
+      --soft: #f3f4f6;
+    }
+
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: radial-gradient(circle at top left, #e0e7ff, transparent 32rem), var(--bg);
+      color: var(--ink);
+    }
+
+    .wrap { max-width: 1180px; margin: 0 auto; padding: 28px 18px 60px; }
+    header {
+      display: flex;
+      justify-content: space-between;
+      gap: 16px;
+      align-items: flex-start;
+      margin-bottom: 18px;
+    }
+    h1 { margin: 0 0 8px; font-size: 34px; letter-spacing: -0.04em; }
+    h2 { margin: 0 0 10px; font-size: 20px; }
+    h3 { margin: 0 0 6px; font-size: 16px; }
+    p { margin: 6px 0; }
+    .muted { color: var(--muted); }
+    .pill {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 7px 10px;
+      border-radius: 999px;
+      background: #eef2ff;
+      color: #3730a3;
+      font-size: 13px;
+      font-weight: 700;
+      white-space: nowrap;
+    }
+    .grid { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+    .grid3 { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
+    .card {
+      background: rgba(255,255,255,0.92);
+      border: 1px solid var(--line);
+      border-radius: 18px;
+      padding: 18px;
+      box-shadow: 0 8px 30px rgba(17,24,39,0.06);
+    }
+    .span2 { grid-column: span 2; }
+    .stat {
+      background: var(--soft);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+    }
+    .stat b { display: block; font-size: 26px; letter-spacing: -0.03em; margin-top: 6px; }
+    .notice {
+      padding: 12px 14px;
+      border-radius: 14px;
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      color: var(--amber);
+      margin-bottom: 14px;
+      line-height: 1.45;
+    }
+    .row { display: flex; flex-wrap: wrap; align-items: center; gap: 8px; margin: 8px 0; }
+    label { font-size: 13px; font-weight: 700; color: #374151; display: block; margin: 12px 0 5px; }
+    input, select, textarea {
+      width: 100%;
+      padding: 11px 12px;
+      border-radius: 11px;
+      border: 1px solid #d1d5db;
+      background: white;
+      font: inherit;
+    }
+    textarea { min-height: 96px; resize: vertical; }
+    button {
+      border: 0;
+      border-radius: 11px;
+      background: var(--dark);
+      color: white;
+      padding: 10px 13px;
+      font-weight: 800;
+      cursor: pointer;
+    }
+    button:hover { filter: brightness(1.08); }
     button.secondary { background: #4b5563; }
-    button.danger { background: #b91c1c; }
-    button.good { background: #166534; }
-    .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
-    .muted { color: #667085; }
-    .warning { background: #fffbeb; border: 1px solid #fde68a; color: #92400e; padding: 10px; border-radius: 10px; }
-    .listing { border-top: 1px solid #eee; padding: 12px 0; }
-    code { background: #eee; padding: 2px 5px; border-radius: 4px; }
+    button.good { background: var(--green); }
+    button.blue { background: var(--blue); }
+    button.danger { background: var(--red); }
+    button.ghost { background: #eef2ff; color: #3730a3; }
+    button:disabled { opacity: 0.45; cursor: not-allowed; }
+    .account-btn { background: white; color: var(--ink); border: 1px solid var(--line); }
+    .account-btn.active { background: var(--dark); color: white; }
+    .service, .escrow-item, .ledger-row {
+      border-top: 1px solid var(--line);
+      padding: 12px 0;
+    }
+    .service:first-child, .escrow-item:first-child, .ledger-row:first-child { border-top: 0; }
+    .tag {
+      display: inline-block;
+      border-radius: 999px;
+      padding: 4px 8px;
+      background: #ecfdf5;
+      color: #166534;
+      font-size: 12px;
+      font-weight: 800;
+    }
+    .tag.gray { background: #f3f4f6; color: #4b5563; }
+    .tag.blue { background: #eff6ff; color: #1d4ed8; }
+    .tag.amber { background: #fffbeb; color: #92400e; }
+    .result {
+      margin-top: 12px;
+      background: #f8fafc;
+      border: 1px solid #e2e8f0;
+      border-radius: 14px;
+      padding: 14px;
+      line-height: 1.5;
+    }
+    .progress {
+      height: 10px;
+      background: #e5e7eb;
+      border-radius: 999px;
+      overflow: hidden;
+      margin-top: 8px;
+    }
+    .bar { height: 100%; background: #111827; width: 0%; }
+    .ledger {
+      max-height: 330px;
+      overflow: auto;
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 0 12px;
+      background: white;
+    }
+    code { background: #f3f4f6; padding: 2px 6px; border-radius: 6px; }
+
+    @media (max-width: 820px) {
+      header, .grid, .grid3 { display: block; }
+      .card, .stat { margin-bottom: 14px; }
+      .span2 { grid-column: auto; }
+    }
   </style>
 </head>
 <body>
-  <h1>JN-19 AI Credit Market</h1>
-  <p class="muted">Hackathon demo: buy fake <b>JN19 AI credits</b> using fake <b>mUSDC</b>. JN19 is the token name; ERC-20 is the token standard underneath.</p>
+  <div class="wrap">
+    <header>
+      <div>
+        <h1>JN-19 Work Credit Network</h1>
+        <p class="muted">Frontend demo: fixed-value platform credits for AI, compute, services, escrow, and merchant settlement.</p>
+      </div>
+      <span class="pill">No wallet · No real money · Hackathon simulation</span>
+    </header>
 
-  <div class="warning">
-    Demo wording: this is <b>not</b> resale of real ChatGPT/OpenAI credits, and mUSDC is not real USDC. It simulates how a platform credit marketplace could work on a test network.
-  </div>
-
-  <div class="card">
-    <button onclick="connect()">Connect Wallet</button>
-    <button class="secondary" onclick="refresh()">Refresh</button>
-    <p><b>Wallet:</b> <span id="wallet">Not connected</span></p>
-    <p><b>JN19:</b> <span id="jn19Bal">-</span> | <b>mUSDC:</b> <span id="usdcBal">-</span></p>
-    <button onclick="claim('JN19')">Claim 1,000 JN19</button>
-    <button onclick="claim('mUSDC')">Claim 1,000 mUSDC</button>
-  </div>
-
-  <div class="card">
-    <h2>Create Listing</h2>
-    <p class="muted">Seller escrows JN19 credits. Buyer pays mUSDC and receives the JN19 credits.</p>
-    <div class="row">
-      <span>Sell</span>
-      <input id="creditAmount" placeholder="100" value="100" />
-      <span>JN19 credits for</span>
-      <input id="paymentAmount" placeholder="20" value="20" />
-      <span>mUSDC</span>
-      <button onclick="createListing()">Create Listing</button>
+    <div class="notice">
+      <b>Demo rule:</b> JN19 is a closed-loop platform credit. It is not a cryptocurrency, not an investment, not cash-redeemable by users, and not resale of real OpenAI/ChatGPT credits.
     </div>
-    <p class="muted">This sends two wallet transactions: approve JN19, then create listing.</p>
-  </div>
 
-  <div class="card">
-    <h2>Use Credits Demo</h2>
-    <p class="muted">After buying JN19, burn/spend some credits to simulate running an AI request.</p>
-    <div class="row">
-      <span>Spend</span>
-      <input id="burnAmount" placeholder="5" value="5" />
-      <span>JN19</span>
-      <button class="good" onclick="useCredits()">Run Fake AI Request</button>
-    </div>
-    <p id="fakeAiResult" class="muted"></p>
-  </div>
+    <section class="grid">
+      <div class="card span2">
+        <h2>1. Choose demo account</h2>
+        <p class="muted">Switch accounts to show the buyer, researcher, merchant, and institution admin flows.</p>
+        <div id="accountButtons" class="row"></div>
+      </div>
 
-  <div class="card">
-    <h2>Listings</h2>
-    <div id="listings">Connect wallet and refresh.</div>
+      <div class="card span2">
+        <h2>Current account</h2>
+        <div class="grid3">
+          <div class="stat">
+            <span class="muted">Account</span>
+            <b id="activeUserName">-</b>
+            <span id="activeUserRole" class="tag gray">-</span>
+          </div>
+          <div class="stat">
+            <span class="muted">JN19 balance</span>
+            <b><span id="creditBalance">0</span></b>
+            <span class="muted">closed-loop credits</span>
+          </div>
+          <div class="stat">
+            <span class="muted">Estimated AI capacity</span>
+            <b><span id="requestCapacity">0</span>x</b>
+            <span class="muted">general AI requests</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="card">
+        <h2>2. Buy platform credits</h2>
+        <p class="muted">Simulates a user buying fixed-value JN19 credits with card, bank, or mock USDC.</p>
+        <label for="buyAmount">Credits to buy</label>
+        <input id="buyAmount" type="number" min="1" value="100" />
+        <label for="paymentMethod">Payment method</label>
+        <select id="paymentMethod">
+          <option>Mock card payment</option>
+          <option>Mock bank transfer</option>
+          <option>Mock USDC backend settlement</option>
+        </select>
+        <div class="row">
+          <button class="good" onclick="buyCredits()">Buy credits</button>
+          <button class="secondary" onclick="resetDemo()">Reset demo</button>
+        </div>
+        <p class="muted">Demo value: <code>1 JN19 = $0.10 platform value</code></p>
+      </div>
+
+      <div class="card">
+        <h2>3. Institution allocation</h2>
+        <p class="muted">Shows a school/lab/company buying bulk credits and assigning them to users.</p>
+        <label for="allocateTo">Allocate to</label>
+        <select id="allocateTo">
+          <option value="student">Student User</option>
+          <option value="researcher">Researcher User</option>
+        </select>
+        <label for="allocateAmount">Amount</label>
+        <input id="allocateAmount" type="number" min="1" value="50" />
+        <button class="blue" onclick="allocateCredits()">Allocate from admin pool</button>
+      </div>
+
+      <div class="card">
+        <h2>4. AI workbench</h2>
+        <p class="muted">Spend JN19 based on the selected model. This simulates metered AI usage.</p>
+        <label for="modelSelect">Model route</label>
+        <select id="modelSelect" onchange="updateCostPreview()">
+          <option value="budget">Budget model — 4 JN19</option>
+          <option value="general" selected>General GPT-style model — 8 JN19</option>
+          <option value="reasoning">Reasoning model — 15 JN19</option>
+          <option value="image">Image generation — 25 JN19</option>
+        </select>
+        <label for="promptInput">Prompt</label>
+        <textarea id="promptInput">Write a two sentence pitch for JN-19.</textarea>
+        <div class="row">
+          <span class="tag blue" id="costPreview">Cost: 8 JN19</span>
+          <button class="good" onclick="runAiRequest()">Run AI request</button>
+        </div>
+        <div id="aiResult" class="result muted">AI output will appear here.</div>
+      </div>
+
+      <div class="card">
+        <h2>5. Service marketplace</h2>
+        <p class="muted">Approved merchants accept JN19. The platform later settles them in simulated USD or USDC.</p>
+        <div id="serviceList"></div>
+      </div>
+
+      <div class="card">
+        <h2>6. Escrow task payment</h2>
+        <p class="muted">Buyer locks credits. Seller completes work. Buyer releases payment.</p>
+        <label for="escrowTask">Task</label>
+        <input id="escrowTask" value="Clean a 500-row AI training dataset" />
+        <label for="escrowSeller">Seller</label>
+        <select id="escrowSeller">
+          <option value="merchant">AI Compute Merchant</option>
+          <option value="researcher">Researcher User</option>
+        </select>
+        <label for="escrowAmount">Credits to lock</label>
+        <input id="escrowAmount" type="number" min="1" value="50" />
+        <button class="blue" onclick="lockEscrow()">Lock credits in escrow</button>
+        <div id="escrowList" style="margin-top:12px;"></div>
+      </div>
+
+      <div class="card">
+        <h2>7. Merchant settlement</h2>
+        <p class="muted">Merchants do not trade JN19. The platform settles merchant receivables.</p>
+        <div class="stat">
+          <span class="muted">Merchant receivable</span>
+          <b><span id="merchantReceivable">0</span> JN19</b>
+          <span id="merchantUsd" class="muted">≈ $0.00</span>
+        </div>
+        <label for="settlementMethod">Settlement method</label>
+        <select id="settlementMethod">
+          <option>Simulated USD bank payout</option>
+          <option>Simulated USDC payout</option>
+        </select>
+        <button class="good" onclick="settleMerchant()">Settle merchant</button>
+      </div>
+
+      <div class="card span2">
+        <h2>8. Audit ledger</h2>
+        <p class="muted">Every purchase, allocation, usage charge, service payment, escrow event, and settlement is recorded.</p>
+        <div class="row">
+          <button class="secondary" onclick="exportLedger()">Export ledger JSON</button>
+        </div>
+        <div id="ledger" class="ledger"></div>
+      </div>
+    </section>
   </div>
 
   <script>
-    let provider, signer, account, addresses;
+    const STORAGE_KEY = "jn19-work-credit-demo-v1";
+    const CREDIT_VALUE_USD = 0.10;
+    const MODEL_COSTS = {
+      budget: { name: "Budget model", cost: 4 },
+      general: { name: "General GPT-style model", cost: 8 },
+      reasoning: { name: "Reasoning model", cost: 15 },
+      image: { name: "Image generation", cost: 25 }
+    };
 
-    const erc20Abi = [
-      "function balanceOf(address account) view returns (uint256)",
-      "function approve(address spender, uint256 value) returns (bool)",
-      "function claim()",
-      "function burnForAiUsage(uint256 amount)"
+    const SERVICES = [
+      { id: "gpu", title: "10 minute GPU inference slot", merchant: "merchant", credits: 18, desc: "Run a small inference job through an approved compute provider." },
+      { id: "prompt", title: "Prompt optimization review", merchant: "merchant", credits: 22, desc: "Merchant reviews and improves a production AI prompt." },
+      { id: "dataset", title: "Dataset cleaning microtask", merchant: "merchant", credits: 40, desc: "Prepare a small dataset for model evaluation." }
     ];
 
-    const marketAbi = [
-      "function createListing(uint256 creditAmount, uint256 paymentAmount) returns (uint256)",
-      "function buyListing(uint256 listingId)",
-      "function cancelListing(uint256 listingId)",
-      "function getListings() view returns (tuple(address seller,uint256 creditAmount,uint256 paymentAmount,uint8 status)[])"
-    ];
-
-    const statusNames = ["None", "Active", "Sold", "Cancelled"];
-
-    async function loadAddresses() {
-      if (addresses) return addresses;
-      try {
-        const res = await fetch("./addresses.json");
-        addresses = await res.json();
-      } catch (e) {
-        addresses = {
-          JN19: "PASTE_JN19_ADDRESS_HERE",
-          mUSDC: "PASTE_MUSDC_ADDRESS_HERE",
-          JN19Market: "PASTE_MARKET_ADDRESS_HERE"
-        };
-      }
-      return addresses;
-    }
-
-    async function connect() {
-      if (!window.ethereum) {
-        alert("Please install MetaMask.");
-        return;
-      }
-      await loadAddresses();
-      provider = new ethers.BrowserProvider(window.ethereum);
-      await provider.send("eth_requestAccounts", []);
-      signer = await provider.getSigner();
-      account = await signer.getAddress();
-      document.getElementById("wallet").innerText = account;
-      await refresh();
-    }
-
-    async function requireWallet() {
-      if (!signer) await connect();
-      await loadAddresses();
-    }
-
-    function contracts() {
+    function initialState() {
       return {
-        jn19: new ethers.Contract(addresses.JN19, erc20Abi, signer),
-        usdc: new ethers.Contract(addresses.mUSDC, erc20Abi, signer),
-        market: new ethers.Contract(addresses.JN19Market, marketAbi, signer)
+        activeUser: "student",
+        nextEscrowId: 1,
+        users: {
+          student: { name: "Student User", role: "Buyer", credits: 120, spent: 0, merchantReceivable: 0 },
+          researcher: { name: "Researcher User", role: "Power user", credits: 220, spent: 0, merchantReceivable: 0 },
+          merchant: { name: "AI Compute Merchant", role: "Approved seller", credits: 0, spent: 0, merchantReceivable: 0 },
+          admin: { name: "University Admin", role: "Institution", credits: 1000, spent: 0, merchantReceivable: 0 }
+        },
+        escrows: [],
+        ledger: [
+          makeLedger("System", "Platform", "Demo ledger initialized", 0)
+        ]
       };
     }
 
-    function parse(amount) {
-      return ethers.parseUnits(String(amount), 18);
+    function makeLedger(type, actor, detail, credits) {
+      return {
+        time: new Date().toLocaleString(),
+        type,
+        actor,
+        detail,
+        credits
+      };
     }
 
-    function fmt(amount) {
-      return Number(ethers.formatUnits(amount, 18)).toLocaleString(undefined, { maximumFractionDigits: 4 });
+    let state = loadState();
+
+    function loadState() {
+      try {
+        const saved = JSON.parse(localStorage.getItem(STORAGE_KEY));
+        return saved || initialState();
+      } catch (err) {
+        return initialState();
+      }
     }
 
-    async function claim(token) {
-      await requireWallet();
-      const c = contracts();
-      const tx = token === "JN19" ? await c.jn19.claim() : await c.usdc.claim();
-      await tx.wait();
-      await refresh();
+    function save() {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
     }
 
-    async function createListing() {
-      await requireWallet();
-      const c = contracts();
-      const creditAmount = parse(document.getElementById("creditAmount").value || "0");
-      const paymentAmount = parse(document.getElementById("paymentAmount").value || "0");
-
-      let tx = await c.jn19.approve(addresses.JN19Market, creditAmount);
-      await tx.wait();
-      tx = await c.market.createListing(creditAmount, paymentAmount);
-      await tx.wait();
-      await refresh();
+    function money(credits) {
+      return "$" + (Number(credits || 0) * CREDIT_VALUE_USD).toFixed(2);
     }
 
-    async function buyListing(id, paymentAmount) {
-      await requireWallet();
-      const c = contracts();
-      let tx = await c.usdc.approve(addresses.JN19Market, paymentAmount);
-      await tx.wait();
-      tx = await c.market.buyListing(id);
-      await tx.wait();
-      await refresh();
+    function escapeHtml(value) {
+      return String(value)
+        .replaceAll("&", "&amp;")
+        .replaceAll("<", "&lt;")
+        .replaceAll(">", "&gt;")
+        .replaceAll('"', "&quot;")
+        .replaceAll("'", "&#039;");
     }
 
-    async function cancelListing(id) {
-      await requireWallet();
-      const c = contracts();
-      const tx = await c.market.cancelListing(id);
-      await tx.wait();
-      await refresh();
+    function currentUser() {
+      return state.users[state.activeUser];
     }
 
-    async function useCredits() {
-      await requireWallet();
-      const c = contracts();
-      const burnAmount = parse(document.getElementById("burnAmount").value || "0");
-      const tx = await c.jn19.burnForAiUsage(burnAmount);
-      await tx.wait();
-      document.getElementById("fakeAiResult").innerText = "Fake AI request completed. JN19 credits were burned/spent.";
-      await refresh();
+    function addLedger(type, actor, detail, credits) {
+      state.ledger.unshift(makeLedger(type, actor, detail, credits));
+      state.ledger = state.ledger.slice(0, 80);
+      save();
     }
 
-    async function refresh() {
-      if (!signer || !addresses) return;
-      const c = contracts();
-      document.getElementById("jn19Bal").innerText = fmt(await c.jn19.balanceOf(account));
-      document.getElementById("usdcBal").innerText = fmt(await c.usdc.balanceOf(account));
+    function requireCredits(userKey, amount) {
+      const user = state.users[userKey];
+      if (user.credits < amount) {
+        alert(`${user.name} only has ${user.credits} JN19. Buy or allocate more credits first.`);
+        return false;
+      }
+      return true;
+    }
 
-      const listings = await c.market.getListings();
-      const container = document.getElementById("listings");
-      if (listings.length === 0) {
-        container.innerHTML = "No listings yet.";
+    function setActiveUser(key) {
+      state.activeUser = key;
+      save();
+      render();
+    }
+
+    function buyCredits() {
+      const amount = Number(document.getElementById("buyAmount").value || 0);
+      const method = document.getElementById("paymentMethod").value;
+      if (!Number.isFinite(amount) || amount <= 0) return alert("Enter a credit amount above 0.");
+
+      const user = currentUser();
+      user.credits += amount;
+      addLedger("Credit purchase", user.name, `Bought ${amount} JN19 using ${method}`, amount);
+      render();
+    }
+
+    function allocateCredits() {
+      const to = document.getElementById("allocateTo").value;
+      const amount = Number(document.getElementById("allocateAmount").value || 0);
+      if (!Number.isFinite(amount) || amount <= 0) return alert("Enter an allocation amount above 0.");
+      if (!requireCredits("admin", amount)) return;
+
+      state.users.admin.credits -= amount;
+      state.users[to].credits += amount;
+      addLedger("Institution allocation", "University Admin", `Allocated ${amount} JN19 to ${state.users[to].name}`, amount);
+      render();
+    }
+
+    function updateCostPreview() {
+      const selected = document.getElementById("modelSelect").value;
+      const route = MODEL_COSTS[selected];
+      document.getElementById("costPreview").innerText = `Cost: ${route.cost} JN19`;
+    }
+
+    function runAiRequest() {
+      const selected = document.getElementById("modelSelect").value;
+      const route = MODEL_COSTS[selected];
+      const userKey = state.activeUser;
+      const user = currentUser();
+      const prompt = document.getElementById("promptInput").value.trim();
+      if (!prompt) return alert("Enter a prompt first.");
+      if (!requireCredits(userKey, route.cost)) return;
+
+      user.credits -= route.cost;
+      user.spent += route.cost;
+      addLedger("AI usage", user.name, `Ran ${route.name}; prompt: "${prompt.slice(0, 70)}"`, -route.cost);
+
+      document.getElementById("aiResult").innerHTML = `
+        <b>Simulated AI response</b><br>
+        <span class="muted">Route:</span> ${escapeHtml(route.name)}<br>
+        <span class="muted">Credits spent:</span> ${route.cost} JN19<br><br>
+        JN-19 is a closed-loop work credit network for AI, compute, and digital services. Users buy stable platform credits, spend them inside the app, and merchants are settled by the platform instead of trading the credits.
+      `;
+      save();
+      render(false);
+    }
+
+    function buyService(serviceId) {
+      const service = SERVICES.find(s => s.id === serviceId);
+      if (!service) return;
+      const buyerKey = state.activeUser;
+      const buyer = currentUser();
+      if (buyerKey === service.merchant) return alert("Merchant cannot buy its own service in this demo.");
+      if (!requireCredits(buyerKey, service.credits)) return;
+
+      buyer.credits -= service.credits;
+      buyer.spent += service.credits;
+      state.users[service.merchant].merchantReceivable += service.credits;
+      addLedger("Marketplace payment", buyer.name, `Bought service: ${service.title}`, -service.credits);
+      addLedger("Merchant receivable", state.users[service.merchant].name, `Receivable created for service: ${service.title}`, service.credits);
+      render();
+    }
+
+    function lockEscrow() {
+      const buyerKey = state.activeUser;
+      const buyer = currentUser();
+      const sellerKey = document.getElementById("escrowSeller").value;
+      const task = document.getElementById("escrowTask").value.trim();
+      const amount = Number(document.getElementById("escrowAmount").value || 0);
+      if (!task) return alert("Enter a task.");
+      if (!Number.isFinite(amount) || amount <= 0) return alert("Enter an escrow amount above 0.");
+      if (buyerKey === sellerKey) return alert("Buyer and seller must be different in this demo.");
+      if (!requireCredits(buyerKey, amount)) return;
+
+      buyer.credits -= amount;
+      state.escrows.unshift({
+        id: state.nextEscrowId++,
+        task,
+        buyer: buyerKey,
+        seller: sellerKey,
+        amount,
+        status: "Locked"
+      });
+      addLedger("Escrow locked", buyer.name, `Locked ${amount} JN19 for task: ${task}`, -amount);
+      render();
+    }
+
+    function markEscrowComplete(id) {
+      const escrow = state.escrows.find(e => e.id === id);
+      if (!escrow || escrow.status !== "Locked") return;
+      escrow.status = "Seller completed";
+      addLedger("Escrow update", state.users[escrow.seller].name, `Marked task complete: ${escrow.task}`, 0);
+      render();
+    }
+
+    function releaseEscrow(id) {
+      const escrow = state.escrows.find(e => e.id === id);
+      if (!escrow || escrow.status === "Released" || escrow.status === "Cancelled") return;
+      escrow.status = "Released";
+      state.users[escrow.seller].merchantReceivable += escrow.amount;
+      state.users[escrow.buyer].spent += escrow.amount;
+      addLedger("Escrow released", state.users[escrow.buyer].name, `Released ${escrow.amount} JN19 to ${state.users[escrow.seller].name}`, -escrow.amount);
+      addLedger("Merchant receivable", state.users[escrow.seller].name, `Receivable created from escrow task: ${escrow.task}`, escrow.amount);
+      render();
+    }
+
+    function cancelEscrow(id) {
+      const escrow = state.escrows.find(e => e.id === id);
+      if (!escrow || escrow.status === "Released" || escrow.status === "Cancelled") return;
+      escrow.status = "Cancelled";
+      state.users[escrow.buyer].credits += escrow.amount;
+      addLedger("Escrow cancelled", state.users[escrow.buyer].name, `Returned ${escrow.amount} JN19 from cancelled task`, escrow.amount);
+      render();
+    }
+
+    function settleMerchant() {
+      const merchant = state.users.merchant;
+      const amount = merchant.merchantReceivable;
+      const method = document.getElementById("settlementMethod").value;
+      if (amount <= 0) return alert("No merchant receivable to settle yet. Buy a service first.");
+      merchant.merchantReceivable = 0;
+      addLedger("Merchant settlement", merchant.name, `Settled ${amount} JN19 receivable as ${money(amount)} via ${method}`, -amount);
+      render();
+    }
+
+    function exportLedger() {
+      const blob = new Blob([JSON.stringify(state.ledger, null, 2)], { type: "application/json" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "jn19-audit-ledger.json";
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function resetDemo() {
+      if (!confirm("Reset the local demo data?")) return;
+      state = initialState();
+      save();
+      document.getElementById("aiResult").innerHTML = "AI output will appear here.";
+      render();
+    }
+
+    function renderAccountButtons() {
+      const container = document.getElementById("accountButtons");
+      container.innerHTML = Object.entries(state.users).map(([key, user]) => `
+        <button class="account-btn ${state.activeUser === key ? "active" : ""}" onclick="setActiveUser('${key}')">
+          ${escapeHtml(user.name)}
+        </button>
+      `).join("");
+    }
+
+    function renderBalances() {
+      const user = currentUser();
+      const capacity = Math.floor(user.credits / MODEL_COSTS.general.cost);
+      const maxForProgress = Math.max(300, user.credits, user.spent + user.credits);
+      const usedPercent = Math.min(100, Math.round((user.spent / maxForProgress) * 100));
+
+      document.getElementById("activeUserName").innerText = user.name;
+      document.getElementById("activeUserRole").innerText = user.role;
+      document.getElementById("creditBalance").innerText = user.credits;
+      document.getElementById("requestCapacity").innerText = capacity;
+
+      const existing = document.getElementById("spendProgress");
+      if (!existing) {
+        const stats = document.querySelectorAll(".stat")[1];
+        stats.insertAdjacentHTML("beforeend", `<div class="progress"><div id="spendProgress" class="bar"></div></div>`);
+      }
+      document.getElementById("spendProgress").style.width = usedPercent + "%";
+    }
+
+    function renderServices() {
+      const container = document.getElementById("serviceList");
+      container.innerHTML = SERVICES.map(service => `
+        <div class="service">
+          <h3>${escapeHtml(service.title)}</h3>
+          <p class="muted">${escapeHtml(service.desc)}</p>
+          <p><span class="tag">${service.credits} JN19</span> <span class="muted">≈ ${money(service.credits)}</span></p>
+          <button onclick="buyService('${service.id}')">Buy service</button>
+        </div>
+      `).join("");
+    }
+
+    function renderEscrows() {
+      const container = document.getElementById("escrowList");
+      if (state.escrows.length === 0) {
+        container.innerHTML = `<p class="muted">No escrow tasks yet.</p>`;
         return;
       }
 
-      container.innerHTML = listings.map((l, i) => {
-        const isSeller = l.seller.toLowerCase() === account.toLowerCase();
-        const active = Number(l.status) === 1;
-        const rate = Number(ethers.formatUnits(l.paymentAmount, 18)) / Number(ethers.formatUnits(l.creditAmount, 18));
-        return `
-          <div class="listing">
-            <b>Listing #${i}</b> — ${fmt(l.creditAmount)} JN19 for ${fmt(l.paymentAmount)} mUSDC
-            <br><span class="muted">Seller: <code>${l.seller.slice(0, 6)}...${l.seller.slice(-4)}</code> | Status: ${statusNames[Number(l.status)]} | Rate: ${rate.toFixed(4)} mUSDC/JN19</span>
-            <br>
-            ${active && !isSeller ? `<button onclick="buyListing(${i}, '${l.paymentAmount.toString()}')">Buy</button>` : ""}
-            ${active && isSeller ? `<button class="danger" onclick="cancelListing(${i})">Cancel</button>` : ""}
+      container.innerHTML = state.escrows.map(escrow => `
+        <div class="escrow-item">
+          <h3>#${escrow.id}: ${escapeHtml(escrow.task)}</h3>
+          <p class="muted">Buyer: ${escapeHtml(state.users[escrow.buyer].name)} · Seller: ${escapeHtml(state.users[escrow.seller].name)}</p>
+          <p><span class="tag amber">${escrow.status}</span> <span class="tag gray">${escrow.amount} JN19</span></p>
+          <div class="row">
+            <button class="secondary" ${escrow.status !== "Locked" ? "disabled" : ""} onclick="markEscrowComplete(${escrow.id})">Seller marks complete</button>
+            <button class="good" ${escrow.status === "Released" || escrow.status === "Cancelled" ? "disabled" : ""} onclick="releaseEscrow(${escrow.id})">Buyer approves release</button>
+            <button class="danger" ${escrow.status === "Released" || escrow.status === "Cancelled" ? "disabled" : ""} onclick="cancelEscrow(${escrow.id})">Cancel/refund</button>
           </div>
-        `;
-      }).join("");
+        </div>
+      `).join("");
     }
+
+    function renderSettlement() {
+      const credits = state.users.merchant.merchantReceivable;
+      document.getElementById("merchantReceivable").innerText = credits;
+      document.getElementById("merchantUsd").innerText = `≈ ${money(credits)}`;
+    }
+
+    function renderLedger() {
+      const container = document.getElementById("ledger");
+      container.innerHTML = state.ledger.map(entry => `
+        <div class="ledger-row">
+          <div class="row" style="justify-content: space-between;">
+            <b>${escapeHtml(entry.type)}</b>
+            <span class="muted">${escapeHtml(entry.time)}</span>
+          </div>
+          <p>${escapeHtml(entry.detail)}</p>
+          <p class="muted">Actor: ${escapeHtml(entry.actor)} · Credits: ${entry.credits > 0 ? "+" : ""}${entry.credits}</p>
+        </div>
+      `).join("");
+    }
+
+    function render(keepAiResult = true) {
+      renderAccountButtons();
+      renderBalances();
+      renderServices();
+      renderEscrows();
+      renderSettlement();
+      renderLedger();
+      updateCostPreview();
+      if (!keepAiResult) return;
+    }
+
+    render();
   </script>
 </body>
 </html>

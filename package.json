@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Hackathon demo: buy fake JN-19 AI credits with fake USDC using ERC-20 tokens and smart-contract escrow.",
   "scripts": {
+    "start": "node server.js",
     "compile": "hardhat compile",
     "test": "hardhat test",
     "node": "hardhat node",
